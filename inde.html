@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kaiserkrest</title>
+  <style>
+    :root {
+      --bg: #0c0c0c;
+      --panel: #141414;
+      --accent: #00eeff;
+      --text: #e0e0e0;
+      --dim: #777;
+      --border: #333;
+      --header-height: 48px;
+      --panel-width: 240px;
+      --btn-size: 40px;
+    }
+    
+    body.light-theme {
+      --bg: #ffffff;
+      --panel: #f5f5f5;
+      --accent: #0078d4;
+      --text: #1f1f1f;
+      --dim: #666;
+      --border: #ddd;
+    }
+    
+    body.light-theme .code-area {
+      background: #ffffff;
+      color: #1f1f1f;
+      caret-color: #1f1f1f;
+    }
+    
+    body.light-theme .hljs {
+      background: #ffffff !important;
+    }
+    
+    body.light-theme .hljs-comment { color: #008000; font-style: italic; }
+    body.light-theme .hljs-keyword { color: #0000FF; font-weight: bold; }
+    body.light-theme .hljs-string { color: #D73A49; font-weight: bold; }
+    body.light-theme .hljs-number { color: #0A7D6E; font-weight: bold; }
+    body.light-theme .hljs-function { color: #B8860B; font-weight: bold; }
+    body.light-theme .hljs-tag { color: #8B0000; font-weight: bold; }
+    body.light-theme .hljs-name { color: #8B0000; font-weight: bold; }
+    body.light-theme .hljs-attr { color: #FF4500; }
+    body.light-theme header {
+      color: white;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Courier New', monospace;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Убираем полосы прокрутки */
+    ::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      background: transparent;
+    }
+    
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    /* === Хедер === */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 100;
+      background: linear-gradient(90deg, #00eeff, #bf00ff, #39ff14, #00eeff);
+      background-size: 400% 400%;
+      animation: gradientShift 12s ease infinite;
+      color: black;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    
+    header.paused {
+      background: var(--panel);
+      animation: none;
+      color: white;
+      border-bottom: 1px solid var(--border);
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .header-title {
+      margin-right: 20px;
+    }
+    
+    header.paused .header-title::first-letter {
+      color: var(--accent);
+    }
+
+    .play-btn {
+      background: transparent;
+      border: none;
+      color: black;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      margin-right: 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    header.paused .play-btn {
+      color: white;
+    }
+
+    .track-marquee {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      color: black;
+      font-size: 14px;
+    }
+
+    .track-marquee span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scrollTrack 20s linear infinite;
+    }
+    
+    header.paused .track-marquee {
+      color: white;
+    }
+    
+    header.paused .track-marquee span {
+      animation-play-state: paused;
+    }
+
+    @keyframes scrollTrack {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+
+    /* === Боковая панель === */
+    .sidebar {
+      position: fixed;
+      top: var(--header-height);
+      left: 0;
+      width: var(--panel-width);
+      bottom: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      z-index: 90;
+    }
+    
+    .sidebar > .projects-list {
+      position: relative;
+    }
+
+    .home-btn {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 12px;
+      font-family: inherit;
+      font-size: 13px;
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .home-btn > span {
+      flex: 1;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .home-btn.project-item {
+      padding: 8px 12px;
+      margin-bottom: 3px;
+      cursor: move;
+      user-select: none;
+    }
+    
+    .project-item.dragging {
+      opacity: 0.5;
+    }
+
+    .home-btn:hover,
+    .project-item:hover {
+      border-color: var(--accent);
+    }
+
+    .project-item.active {
+      border-color: var(--accent);
+      background: rgba(0, 238, 255, 0.08);
+    }
+    
+    .project-item.active > span {
+      color: var(--accent);
+    }
+
+    .project-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 8px;
+    }
+
+    .project-actions button {
+      background: transparent;
+      border: none;
+      color: var(--dim);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 4px;
+      min-width: 16px;
+      text-align: center;
+    }
+
+    .project-actions button:hover {
+      color: #ff5555;
+    }
+
+    .quick-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+    }
+
+    .quick-bar .quick-btn {
+      flex: 1;
+      height: var(--btn-size);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .search-box {
+      width: 100%;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      margin-bottom: 12px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+
+    .search-box:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: none;
+    }
+
+    .projects-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      position: relative;
+    }
+
+    .ai-toggle {
+      padding: 10px;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      text-align: center;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .ai-toggle:hover {
+      border-color: var(--accent);
+    }
+    
+    .console-toggle {
+      margin-top: auto;
+      padding: 10px;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      text-align: center;
+      cursor: pointer;
+      font-size: 13px;
+      margin-bottom: 8px;
+      position: relative;
+      margin-top: 6px;
+    }
+
+    .projects-list::after {
+      content: '';
+      display: block;
+      height: 6px;
+      background: var(--panel);
+      flex-shrink: 0;
+    }
+
+    .console-toggle:hover {
+      border-color: var(--accent);
+    }
+
+    .ai-chat {
+      position: fixed;
+      bottom: 0;
+      left: var(--panel-width);
+      right: 0;
+      height: 0;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: height 0.3s ease;
+      z-index: 50;
+    }
+
+    .ai-chat.open {
+      height: 180px;
+    }
+
+    .console-panel {
+      position: fixed;
+      bottom: 0;
+      left: var(--panel-width);
+      right: 0;
+      height: 0;
+      background: #0a0a0a;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: height 0.3s ease;
+      z-index: 50;
+    }
+
+    .console-panel.open {
+      height: 300px;
+    }
+
+    .console-output {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace;
+      color: #00FF00;
+    }
+
+    .console-input-wrapper {
+      display: flex;
+      padding: 10px;
+      gap: 8px;
+      align-items: center;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+
+    .chat-input {
+      display: flex;
+      padding: 0 10px 10px;
+      gap: 6px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .chat-input input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: none;
+    }
+
+    .chat-input button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .chat-input button:hover {
+      border-color: var(--accent);
+    }
+    
+    #console-input {
+      flex: 1;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: #00FF00;
+      padding: 6px 10px;
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace;
+      font-size: 13px;
+      outline: none;
+    }
+
+    #console-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .console-input-wrapper button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .console-input-wrapper button:hover {
+      border-color: var(--accent);
+    }
+
+    /* === Основная область === */
+    .main-content {
+      position: fixed;
+      top: var(--header-height);
+      left: var(--panel-width);
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #content-area {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .main-content.with-padding {
+      padding: 24px;
+      overflow: auto;
+    }
+    
+    .main-content.with-padding #content-area {
+      overflow: auto;
+    }
+
+    .home-screen {
+      position: relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .home-screen::before {
+      content: "K";
+      position: absolute;
+      font-size: 900px;
+      opacity: 0.03;
+      z-index: 0;
+      color: white;
+      pointer-events: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .home-buttons {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .home-btn-large {
+      width: 140px;
+      height: 140px;
+      background: rgba(30, 30, 30, 0.7);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      padding: 12px;
+    }
+
+    .home-btn-large:hover {
+      border-color: var(--accent);
+    }
+
+    .upload-image-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px;
+      height: 48px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 32px;
+      cursor: pointer;
+      z-index: 10;
+      display: none;
+    }
+
+    .upload-image-btn.visible {
+      display: block;
+    }
+
+    .upload-image-btn:hover {
+      opacity: 0.7;
+    }
+
+    /* === Оверлей для загруженного изображения === */
+    .image-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .image-overlay img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+
+    /* === Редактор кода === */
+    .code-editor {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      overflow-x: auto;
+    }
+
+    .editor-tab {
+      padding: 8px 16px;
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--dim);
+      cursor: move;
+      font-family: inherit;
+      font-size: 13px;
+      white-space: nowrap;
+      position: relative;
+      user-select: none;
+    }
+    
+    .editor-tab.dragging {
+      opacity: 0.5;
+    }
+    
+    .file-ext-js { color: #FFD700; font-weight: bold; }
+    .file-ext-html { color: #FF6347; font-weight: bold; }
+    .file-ext-css { color: #9370DB; font-weight: bold; }
+    .file-ext-py { color: #3776AB; font-weight: bold; }
+    .file-ext-java { color: #F89820; font-weight: bold; }
+    .file-ext-cpp, .file-ext-c { color: #00599C; font-weight: bold; }
+    .file-ext-json { color: #00FF00; font-weight: bold; }
+    .file-ext-md { color: #00D4FF; font-weight: bold; }
+    .file-ext-txt { color: #AAAAAA; font-weight: bold; }
+
+    .editor-tab.active {
+      color: var(--accent);
+      background: rgba(0, 238, 255, 0.05);
+    }
+
+    .editor-tab:hover {
+      color: var(--text);
+    }
+
+    .tab-close {
+      margin-left: 8px;
+      color: var(--dim);
+      cursor: pointer;
+    }
+
+    .tab-close:hover {
+      color: #ff5555;
+    }
+
+    .editor-controls {
+      padding: 10px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    .editor-controls button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .editor-controls button:hover {
+      border-color: var(--accent);
+    }
+
+    .code-area {
+      flex: 1;
+      background: var(--bg);
+      border: none;
+      color: var(--text);
+      padding: 16px;
+      outline: none;
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace;
+      font-size: 14px;
+      overflow: auto;
+      resize: none;
+      white-space: pre;
+      line-height: 1.6;
+      tab-size: 2;
+      min-height: 0;
+      margin: 0;
+    }
+
+    .code-area:focus {
+      outline: none;
+    }
+
+    /* Подсветка синтаксиса */
+    .hljs {
+      background: transparent !important;
+      color: var(--text);
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace !important;
+      font-size: 14px !important;
+      line-height: 1.6 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: block !important;
+    }
+    
+    .hljs * {
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace !important;
+      font-size: 14px !important;
+    }
+    
+    .hljs-tag { color: #00D9FF; font-weight: bold; }
+    .hljs-name { color: #00FFA3; font-weight: bold; }
+    .hljs-attr { color: #00C8FF; }
+    .hljs-string { color: #FF3366; font-weight: bold; }
+    .hljs-keyword { color: #FF00FF; font-weight: bold; }
+    .hljs-selector-tag { color: #FFFF00; font-weight: bold; }
+    .hljs-selector-class { color: #FFFF00; font-weight: bold; }
+    .hljs-selector-id { color: #FFFF00; font-weight: bold; }
+    .hljs-property { color: #00D9FF; }
+    .hljs-number { color: #00FF88; font-weight: bold; }
+    .hljs-comment { color: #808080; font-style: italic; }
+    .hljs-function { color: #FFD700; font-weight: bold; }
+    .hljs-built_in { color: #00FFA3; font-weight: bold; }
+    .hljs-title { color: #FFD700; font-weight: bold; }
+    .hljs-params { color: var(--text); }
+    .hljs-meta { color: #00C8FF; }
+    .hljs-literal { color: #00D9FF; font-weight: bold; }
+    .hljs-variable { color: #00C8FF; }
+    .hljs-type { color: #00FFA3; }
+    .hljs-class { color: #00FFA3; }
+    .hljs-doctag { color: #00D9FF; }
+    .hljs-symbol { color: #00D9FF; }
+    .hljs-regexp { color: #FF3366; }
+    
+    /* Цвета для кода без подсветки */
+    #code-area {
+      color: transparent;
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace !important;
+      font-size: 14px !important;
+    }
+    
+    #code-highlight {
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace !important;
+      font-size: 14px !important;
+    }
+    
+    #code-highlight code {
+      font-family: 'SF Mono', 'Courier New', 'Consolas', monospace !important;
+      font-size: 14px !important;
+    }
+
+    /* === Галерея заметок === */
+    .notes-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .note-card {
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s;
+      height: 200px;
+    }
+
+    .note-card:hover {
+      border-color: var(--accent);
+    }
+
+    .note-card-image {
+      width: 100%;
+      height: 140px;
+      background: #0a0a0a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .note-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .note-card-image.empty {
+      color: var(--dim);
+      font-size: 48px;
+    }
+
+    .note-card-title {
+      padding: 10px;
+      font-size: 13px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .note-card-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .note-card-actions button {
+      background: transparent;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px;
+    }
+
+    .note-card-actions button:hover {
+      color: #ff5555;
+    }
+
+    .notes-header {
+      padding: 20px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .notes-header input {
+      flex: 1;
+    }
+
+    /* === Редактор заметки === */
+    .note-editor {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .note-editor input {
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .note-editor input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .note-editor button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .note-editor button:hover {
+      border-color: var(--accent);
+    }
+
+    .note-image-upload {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .note-image-preview {
+      width: 100px;
+      height: 100px;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .note-image-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .note-image-preview.empty {
+      color: var(--dim);
+      font-size: 32px;
+    }
+
+    .editor-area {
+      flex: 1;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px;
+      outline: none;
+      font-family: inherit;
+      font-size: 14px;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+
+    /* === Модальное окно === */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 20px;
+      max-width: 400px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .modal input {
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .modal input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .modal button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .modal button:hover {
+      border-color: var(--accent);
+    }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+      :root { --panel-width: 100%; }
+      .sidebar {
+        width: 100%;
+        max-height: 40vh;
+        bottom: auto;
+        overflow-y: auto;
+      }
+      .main-content { left: 0; }
+      .ai-chat { left: 0; }
+    }
+  </style>
+  <!-- Highlight.js для подсветки синтаксиса -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="header-title">Kaiserkrest</div>
+  <button class="play-btn" id="play-toggle">▶</button>
+  <div class="track-marquee">
+    <span id="track-name">Плейлист пуст – загрузите музыку в настройках</span>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <button class="home-btn" id="go-home"><span>Главная</span></button>
+  <div class="quick-bar">
+    <button class="quick-btn" id="qb-new" title="Новый проект">+</button>
+    <button class="quick-btn" id="qb-settings" title="Настройки">⚙</button>
+    <button class="quick-btn" id="qb-notes" title="Заметки">✎</button>
+    <button class="quick-btn" id="qb-last" title="Последний проект">⇦</button>
+    <button class="quick-btn" id="qb-extra">–</button>
+  </div>
+  <input type="text" class="search-box" id="project-search" placeholder="Поиск проектов..." />
+  <div class="projects-list" id="projects-list"></div>
+  <div class="console-toggle" id="console-toggle">Консоль (скрыта)</div>
+  <div class="ai-toggle" id="ai-toggle">ИИ (скрыт)</div>
+</aside>
+
+<div class="ai-chat" id="ai-chat">
+  <div class="chat-messages" id="chat-messages">
+    <div style="color:var(--accent);">ИИ: Готов к работе. Спросите что-нибудь.</div>
+  </div>
+  <div class="chat-input">
+    <input type="text" id="chat-input" placeholder="Сообщение..." />
+    <button id="send-chat">Отправить</button>
+  </div>
+</div>
+
+<div class="console-panel" id="console-panel">
+  <div class="console-output" id="console-output">
+    <div style="color:var(--accent);">Консоль готова к работе</div>
+  </div>
+  <div class="console-input-wrapper">
+    <span style="color:var(--accent);">></span>
+    <input type="text" id="console-input" placeholder="Введите команду..." />
+    <button id="console-run">Выполнить</button>
+    <button id="console-clear">Очистить</button>
+  </div>
+</div>
+
+<main class="main-content">
+  <div id="content-area"></div>
+</main>
+
+<button class="upload-image-btn" id="upload-image-home">▦</button>
+
+<input type="file" id="hidden-image-input" accept="image/*" style="display:none;" />
+
+<script>
+  // === Данные ===
+  let currentUser = localStorage.getItem('kaisercrest-current-user') || null;
+  let users = JSON.parse(localStorage.getItem('kaisercrest-users')) || {};
+  let backgroundImage = localStorage.getItem('kaisercrest-bg-image') || null;
+  let playlist = JSON.parse(localStorage.getItem('kaisercrest-playlist')) || [];
+  let currentTrackIndex = 0;
+  let audioPlayer = new Audio();
+  let isPlaying = false;
+  
+  let projects = currentUser && users[currentUser] 
+    ? users[currentUser].projects 
+    : JSON.parse(localStorage.getItem('kaisercrest-projects')) || null;
+    
+  let notes = currentUser && users[currentUser]
+    ? users[currentUser].notes
+    : JSON.parse(localStorage.getItem('kaisercrest-notes-list')) || [
+    { id: 'note1', title: 'Добро пожаловать', content: 'Это ваша первая заметка. Нажмите на неё, чтобы открыть.', image: null }
+  ];
+
+  // Автоматически создаём демо-проекты при первом запуске
+  if (!projects || projects.length === 0) {
+    projects = [
+      { 
+        id: 'demo1', 
+        name: 'Демо-проект 1', 
+        files: [
+          { id: 'index.html', name: 'index.html', content: '<!DOCTYPE html>\n<html>\n<head>\n  <title>Демо</title>\n</head>\n<body>\n  <h1>Добро пожаловать!</h1>\n  <p>Это демо-проект.</p>\n</body>\n</html>' },
+          { id: 'style.css', name: 'style.css', content: 'body {\n  font-family: Arial, sans-serif;\n  padding: 20px;\n}\n\nh1 {\n  color: #00eeff;\n}' },
+          { id: 'script.js', name: 'script.js', content: 'console.log("Демо-проект загружен");' }
+        ] 
+      },
+      { 
+        id: 'demo2', 
+        name: 'Мой сайт', 
+        files: [
+          { id: 'index.html', name: 'index.html', content: '<!DOCTYPE html>\n<html>\n<head>\n  <title>Мой сайт</title>\n</head>\n<body>\n  <h2>Мой сайт</h2>\n</body>\n</html>' },
+          { id: 'style.css', name: 'style.css', content: '' },
+          { id: 'script.js', name: 'script.js', content: '' }
+        ] 
+      }
+    ];
+    localStorage.setItem('kaisercrest-projects', JSON.stringify(projects));
+  }
+
+  let currentView = 'home';
+  let currentProjectId = null;
+  let currentNoteId = null;
+  let currentFileId = null;
+  let currentImageUploadCallback = null;
+
+  const contentArea = document.getElementById('content-area');
+  const projectsList = document.getElementById('projects-list');
+  const hiddenImageInput = document.getElementById('hidden-image-input');
+  const uploadImageBtn = document.getElementById('upload-image-home');
+
+  // === Обработка загрузки изображений ===
+  hiddenImageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file && currentImageUploadCallback) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const dataUrl = evt.target.result;
+        
+        // Показываем изображение на затемненном фоне
+        const overlay = document.createElement('div');
+        overlay.className = 'image-overlay';
+        overlay.innerHTML = `<img src="${dataUrl}" alt="Загруженное изображение" />`;
+        document.body.appendChild(overlay);
+        
+        // Убираем через 2 секунды
+        setTimeout(() => overlay.remove(), 2000);
+        
+        currentImageUploadCallback(dataUrl);
+        currentImageUploadCallback = null;
+      };
+      reader.readAsDataURL(file);
+    }
+    hiddenImageInput.value = '';
+  });
+
+  // === Вспомогательные функции ===
+  function showModal(label, onConfirm, onCancel, defaultValue = '') {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <label>${label}</label>
+        <input type="text" value="${defaultValue}" autofocus />
+        <div style="display:flex;gap:8px;">
+          <button id="modal-ok">OK</button>
+          <button id="modal-cancel">Отмена</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector('input');
+    const okBtn = overlay.querySelector('#modal-ok');
+    const cancelBtn = overlay.querySelector('#modal-cancel');
+
+    input.focus();
+    input.select();
+
+    function cleanup() {
+      overlay.remove();
+    }
+
+    okBtn.onclick = () => {
+      const val = input.value.trim();
+      cleanup();
+      if (val && onConfirm) onConfirm(val);
+    };
+
+    cancelBtn.onclick = () => {
+      cleanup();
+      if (onCancel) onCancel();
+    };
+
+    input.onkeypress = (e) => {
+      if (e.key === 'Enter') okBtn.click();
+    };
+  }
+
+  function showMessage(text) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal"><div>${text}</div></div>`;
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.remove(), 2000);
+  }
+
+  function saveNotes() {
+    if (currentUser && users[currentUser]) {
+      users[currentUser].notes = notes;
+      localStorage.setItem('kaisercrest-users', JSON.stringify(users));
+    } else {
+      localStorage.setItem('kaisercrest-notes-list', JSON.stringify(notes));
+    }
+  }
+
+  function saveProjects() {
+    if (currentUser && users[currentUser]) {
+      users[currentUser].projects = projects;
+      localStorage.setItem('kaisercrest-users', JSON.stringify(users));
+    } else {
+      localStorage.setItem('kaisercrest-projects', JSON.stringify(projects));
+    }
+    renderProjects();
+  }
+
+  function renderProjects(filter = '') {
+    const list = projects.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+    projectsList.innerHTML = '';
+    list.forEach((proj, index) => {
+      const btn = document.createElement('button');
+      btn.className = 'home-btn project-item' + (currentProjectId === proj.id ? ' active' : '');
+      btn.dataset.id = proj.id;
+      btn.dataset.index = index;
+      btn.draggable = true;
+      btn.innerHTML = `
+        <span>${proj.name}</span>
+        <div class="project-actions">
+          <button class="rename" title="Переименовать">R</button>
+          <button class="delete" title="Удалить">×</button>
+        </div>
+      `;
+
+      // Перетаскивание проектов
+      btn.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
+        btn.classList.add('dragging');
+      });
+
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+      });
+
+      btn.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      btn.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIndex = parseInt(btn.dataset.index);
+        
+        if (fromIndex !== toIndex) {
+          const item = projects.splice(fromIndex, 1)[0];
+          projects.splice(toIndex, 0, item);
+          saveProjects();
+        }
+      });
+
+      btn.addEventListener('click', (e) => {
+        // Проверяем что не кликнули на actions
+        if (!e.target.closest('.project-actions')) {
+          openProject(proj.id);
+        }
+      });
+
+      btn.querySelector('.delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (projects.length <= 1) {
+          showMessage('Нельзя удалить последний проект');
+          return;
+        }
+        if (confirm(`Удалить проект "${proj.name}"?`)) {
+          projects = projects.filter(p => p.id !== proj.id);
+          saveProjects();
+          if (currentProjectId === proj.id) {
+            showHome();
+          }
+        }
+      });
+
+      btn.querySelector('.rename').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showModal('Новое название проекта:', newName => {
+          proj.name = newName;
+          saveProjects();
+        }, null, proj.name);
+      });
+
+      projectsList.appendChild(btn);
+    });
+  }
+  
+  // === Авторизация ===
+  function showLogin() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width: 350px;">
+        <h3 style="margin-bottom: 16px; text-align: center;">Вход в систему</h3>
+        <label>Имя пользователя</label>
+        <input type="text" id="login-username" autofocus />
+        <label>Пароль</label>
+        <input type="password" id="login-password" />
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="login-btn" style="flex:1;">Войти</button>
+          <button id="register-btn" style="flex:1;">Регистрация</button>
+        </div>
+        <button id="login-cancel" style="margin-top:8px;">Отмена</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    
+    document.getElementById('login-btn').onclick = () => {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      
+      if (!username || !password) {
+        showMessage('Заполните все поля');
+        return;
+      }
+      
+      if (users[username] && users[username].password === password) {
+        currentUser = username;
+        localStorage.setItem('kaisercrest-current-user', username);
+        projects = users[username].projects || [];
+        notes = users[username].notes || [];
+        overlay.remove();
+        showMessage(`Добро пожаловать, ${username}!`);
+        saveProjects();
+        showHome();
+      } else {
+        showMessage('Неверное имя пользователя или пароль');
+      }
+    };
+    
+    document.getElementById('register-btn').onclick = () => {
+      overlay.remove();
+      showRegister();
+    };
+    
+    document.getElementById('login-cancel').onclick = () => {
+      overlay.remove();
+    };
+  }
+  
+  function showRegister() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width: 350px;">
+        <h3 style="margin-bottom: 16px; text-align: center;">Регистрация</h3>
+        <label>Имя пользователя</label>
+        <input type="text" id="reg-username" autofocus />
+        <label>Пароль</label>
+        <input type="password" id="reg-password" />
+        <label>Подтвердите пароль</label>
+        <input type="password" id="reg-password2" />
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="register-submit" style="flex:1;">Зарегистрироваться</button>
+        </div>
+        <button id="register-cancel" style="margin-top:8px;">Отмена</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const usernameInput = document.getElementById('reg-username');
+    const passwordInput = document.getElementById('reg-password');
+    const password2Input = document.getElementById('reg-password2');
+    
+    document.getElementById('register-submit').onclick = () => {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      const password2 = password2Input.value.trim();
+      
+      if (!username || !password || !password2) {
+        showMessage('Заполните все поля');
+        return;
+      }
+      
+      if (password !== password2) {
+        showMessage('Пароли не совпадают');
+        return;
+      }
+      
+      if (users[username]) {
+        showMessage('Пользователь уже существует');
+        return;
+      }
+      
+      users[username] = {
+        password: password,
+        projects: [],
+        notes: [{ id: 'note1', title: 'Добро пожаловать', content: 'Ваша первая заметка', image: null }]
+      };
+      
+      localStorage.setItem('kaisercrest-users', JSON.stringify(users));
+      currentUser = username;
+      localStorage.setItem('kaisercrest-current-user', username);
+      projects = users[username].projects;
+      notes = users[username].notes;
+      
+      overlay.remove();
+      showMessage(`Регистрация успешна! Добро пожаловать, ${username}!`);
+      saveProjects();
+      showHome();
+    };
+    
+    document.getElementById('register-cancel').onclick = () => {
+      overlay.remove();
+    };
+  }
+  
+  function logout() {
+    if (!currentUser) {
+      showMessage('Вы не авторизованы');
+      return;
+    }
+    
+    if (confirm('Выйти из аккаунта?')) {
+      currentUser = null;
+      localStorage.removeItem('kaisercrest-current-user');
+      projects = [];
+      notes = [];
+      showMessage('Вы вышли из аккаунта');
+      saveProjects();
+      showHome();
+    }
+  }
+  
+  function showSettings() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    
+    const themeBtn = document.body.classList.contains('light-theme') 
+      ? '<button id="theme-toggle">Переключить на тёмную тему</button>'
+      : '<button id="theme-toggle">Переключить на светлую тему</button>';
+    
+    const authBtn = currentUser
+      ? `<button id="logout-btn">Выйти (${currentUser})</button>`
+      : '<button id="login-btn-settings">Войти / Регистрация</button>';
+    
+    overlay.innerHTML = `
+      <div class="modal" style="max-width: 350px;">
+        <h3 style="margin-bottom: 16px; text-align: center;">Настройки</h3>
+        ${themeBtn}
+        ${authBtn}
+        <button id="music-settings">♫ Музыка и плеер</button>
+        <button id="settings-close" style="margin-top:8px;">Закрыть</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+      themeToggle.onclick = () => {
+        document.body.classList.toggle('light-theme');
+        const isLight = document.body.classList.contains('light-theme');
+        localStorage.setItem('kaisercrest-theme', isLight ? 'light' : 'dark');
+        showMessage(isLight ? 'Светлая тема включена' : 'Тёмная тема включена');
+        // Перерисовываем настройки с новой темой
+        overlay.remove();
+        showSettings();
+      };
+    }
+    
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.onclick = () => {
+        overlay.remove();
+        logout();
+      };
+    }
+    
+    const loginBtn = document.getElementById('login-btn-settings');
+    if (loginBtn) {
+      loginBtn.onclick = () => {
+        overlay.remove();
+        showLogin();
+      };
+    }
+    
+    document.getElementById('music-settings').onclick = () => {
+      overlay.remove();
+      showMusicSettings();
+    };
+    
+    document.getElementById('settings-close').onclick = () => {
+      overlay.remove();
+    };
+  }
+  
+  function showMusicSettings() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    
+    let playlistHtml = '';
+    if (playlist.length > 0) {
+      playlistHtml = '<div style="max-height: 250px; overflow-y: auto; margin: 12px 0; border: 1px solid var(--border); padding: 8px; background: #1f1f1f;">';
+      playlist.forEach((track, index) => {
+        const isPlaying = index === currentTrackIndex && audioPlayer.src !== '';
+        playlistHtml += `
+          <div class="playlist-item" draggable="true" data-index="${index}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 4px 0; border: 1px solid var(--border); background: ${isPlaying ? 'rgba(0, 238, 255, 0.1)' : 'transparent'}; cursor: move; user-select: none;">
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${isPlaying ? 'var(--accent)' : 'var(--text)'};">
+              ${isPlaying ? '▶ ' : ''}${index + 1}. ${track.name}
+            </span>
+            <div style="display: flex; gap: 8px;">
+              <button class="play-track" data-index="${index}" style="background: transparent; border: none; color: var(--accent); cursor: pointer; padding: 2px 8px; font-size: 16px;" title="Воспроизвести">▶</button>
+              <button class="remove-track" data-index="${index}" style="background: transparent; border: none; color: #ff5555; cursor: pointer; padding: 2px 8px; font-size: 16px;" title="Удалить">×</button>
+            </div>
+          </div>
+        `;
+      });
+      playlistHtml += '</div>';
+    } else {
+      playlistHtml = '<div style="text-align: center; color: var(--dim); padding: 20px;">Плейлист пуст</div>';
+    }
+    
+    overlay.innerHTML = `
+      <div class="modal" style="max-width: 500px;">
+        <h3 style="margin-bottom: 16px; text-align: center;">♫ Музыка и плеер</h3>
+        <div style="display: flex; gap: 8px;">
+          <button id="upload-music" style="flex: 1;">▦ Загрузить MP3</button>
+          <button id="clear-playlist" style="flex: 1;">♲ Очистить плейлист</button>
+        </div>
+        ${playlistHtml}
+        <button id="music-close" style="margin-top:8px;">Закрыть</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // Drag and drop для изменения порядка
+    const playlistItems = overlay.querySelectorAll('.playlist-item');
+    let draggedIndex = null;
+    
+    playlistItems.forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        draggedIndex = parseInt(item.dataset.index);
+        item.style.opacity = '0.5';
+      });
+      
+      item.addEventListener('dragend', (e) => {
+        item.style.opacity = '1';
+      });
+      
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+      
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const dropIndex = parseInt(item.dataset.index);
+        
+        if (draggedIndex !== null && draggedIndex !== dropIndex) {
+          // Перемещаем трек
+          const draggedTrack = playlist.splice(draggedIndex, 1)[0];
+          playlist.splice(dropIndex, 0, draggedTrack);
+          
+          // Обновляем индекс текущего трека
+          if (currentTrackIndex === draggedIndex) {
+            currentTrackIndex = dropIndex;
+          } else if (draggedIndex < currentTrackIndex && dropIndex >= currentTrackIndex) {
+            currentTrackIndex--;
+          } else if (draggedIndex > currentTrackIndex && dropIndex <= currentTrackIndex) {
+            currentTrackIndex++;
+          }
+          
+          localStorage.setItem('kaisercrest-playlist', JSON.stringify(playlist));
+          overlay.remove();
+          showMusicSettings();
+        }
+      });
+    });
+    
+    document.getElementById('upload-music').onclick = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'audio/mp3,audio/mpeg';
+      input.multiple = true;
+      input.onchange = (e) => {
+        const files = Array.from(e.target.files);
+        let loaded = 0;
+        
+        if (files.length === 0) return;
+        
+        files.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            playlist.push({
+              name: file.name.replace('.mp3', ''),
+              data: evt.target.result
+            });
+            loaded++;
+            
+            if (loaded === files.length) {
+              localStorage.setItem('kaisercrest-playlist', JSON.stringify(playlist));
+              updateTrackDisplay();
+              overlay.remove();
+              showMusicSettings();
+              showMessage(`Загружено ${files.length} трек(ов)`);
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+      input.click();
+    };
+    
+    document.getElementById('clear-playlist').onclick = () => {
+      if (confirm('Очистить весь плейлист?')) {
+        playlist = [];
+        localStorage.removeItem('kaisercrest-playlist');
+        audioPlayer.pause();
+        audioPlayer.src = '';
+        isPlaying = false;
+        currentTrackIndex = 0;
+        updatePlayButton();
+        updateTrackDisplay();
+        overlay.remove();
+        showMusicSettings();
+      }
+    };
+    
+    // Воспроизвести трек
+    overlay.querySelectorAll('.play-track').forEach(btn => {
+      btn.onclick = () => {
+        const index = parseInt(btn.dataset.index);
+        currentTrackIndex = index;
+        audioPlayer.src = playlist[currentTrackIndex].data;
+        audioPlayer.play();
+        isPlaying = true;
+        updatePlayButton();
+        updateTrackDisplay();
+        overlay.remove();
+        showMusicSettings();
+      };
+    });
+    
+    // Удалить трек
+    overlay.querySelectorAll('.remove-track').forEach(btn => {
+      btn.onclick = () => {
+        const index = parseInt(btn.dataset.index);
+        if (confirm(`Удалить "${playlist[index].name}"?`)) {
+          if (index === currentTrackIndex) {
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            isPlaying = false;
+          }
+          playlist.splice(index, 1);
+          if (currentTrackIndex >= playlist.length && playlist.length > 0) {
+            currentTrackIndex = 0;
+          }
+          localStorage.setItem('kaisercrest-playlist', JSON.stringify(playlist));
+          updateTrackDisplay();
+          updatePlayButton();
+          overlay.remove();
+          showMusicSettings();
+        }
+      };
+    });
+    
+    document.getElementById('music-close').onclick = () => {
+      overlay.remove();
+    };
+  }
+
+  // === Главная ===
+  function showHome() {
+    currentView = 'home';
+    currentProjectId = null;
+    currentNoteId = null;
+    uploadImageBtn.classList.add('visible');
+    contentArea.parentElement.classList.add('with-padding');
+    
+    const bgStyle = backgroundImage 
+      ? `style="background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('${backgroundImage}'); background-size: cover; background-position: center;"`
+      : '';
+    
+    const removeBgBtn = backgroundImage 
+      ? '<button class="home-btn-large" id="remove-bg">Удалить фон</button>'
+      : '';
+    
+    contentArea.innerHTML = `
+      <div class="home-screen" ${bgStyle}>
+        <div class="home-buttons">
+          <button class="home-btn-large" id="open-last">Последний проект</button>
+          <button class="home-btn-large" id="create-new">Создать проект</button>
+          <button class="home-btn-large" id="open-notes">Заметки</button>
+          ${removeBgBtn}
+        </div>
+      </div>
+    `;
+
+    document.getElementById('open-last').onclick = () => {
+      if (projects.length > 0) {
+        openProject(projects[projects.length - 1].id);
+      } else {
+        showMessage('Нет проектов');
+      }
+    };
+
+    document.getElementById('create-new').onclick = () => {
+      showModal('Название проекта:', name => {
+        const newId = Date.now().toString(36);
+        projects.push({
+          id: newId,
+          name,
+          files: [
+            { id: 'index.html', name: 'index.html', content: '<!DOCTYPE html>\n<html>\n<head>\n  <title>' + name + '</title>\n</head>\n<body>\n  <h1>Новый проект</h1>\n</body>\n</html>' },
+            { id: 'style.css', name: 'style.css', content: '' },
+            { id: 'script.js', name: 'script.js', content: '' }
+          ]
+        });
+        saveProjects();
+        openProject(newId);
+      });
+    };
+
+    document.getElementById('open-notes').onclick = showNotesGallery;
+    
+    const removeBgButton = document.getElementById('remove-bg');
+    if (removeBgButton) {
+      removeBgButton.onclick = () => {
+        if (confirm('Удалить фоновое изображение?')) {
+          backgroundImage = null;
+          localStorage.removeItem('kaisercrest-bg-image');
+          showMessage('Фон удалён');
+          showHome();
+        }
+      };
+    }
+  }
+
+  // === Редактор проектов ===
+  function openProject(id) {
+    const proj = projects.find(p => p.id === id);
+    if (!proj) return;
+
+    currentView = 'editor';
+    currentProjectId = id;
+    currentFileId = proj.files[0].id;
+    uploadImageBtn.classList.remove('visible');
+    contentArea.parentElement.classList.remove('with-padding');
+
+    // Перерисовываем список проектов чтобы обновить active класс
+    renderProjects();
+    
+    renderCodeEditor(proj);
+  }
+
+  function getFileLanguage(filename) {
+    if (filename.endsWith('.html')) return 'html';
+    if (filename.endsWith('.css')) return 'css';
+    if (filename.endsWith('.js')) return 'javascript';
+    if (filename.endsWith('.py')) return 'python';
+    if (filename.endsWith('.java')) return 'java';
+    if (filename.endsWith('.cpp') || filename.endsWith('.c')) return 'cpp';
+    if (filename.endsWith('.json')) return 'json';
+    return 'plaintext';
+  }
+  
+  function escapeHtml(text) {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function renderCodeEditor(proj) {
+    const tabsHtml = proj.files.map((f, index) => {
+      const parts = f.name.split('.');
+      const ext = parts.length > 1 ? parts[parts.length - 1] : '';
+      const nameWithoutExt = parts.slice(0, -1).join('.');
+      const displayName = ext ? `${nameWithoutExt}.<span class="file-ext-${ext}">${ext}</span>` : f.name;
+      
+      return `<button class="editor-tab ${f.id === currentFileId ? 'active' : ''}" data-file="${f.id}" data-index="${index}" draggable="true">
+        ${displayName}
+        ${proj.files.length > 1 ? '<span class="tab-close" data-file="' + f.id + '">×</span>' : ''}
+      </button>`;
+    }).join('');
+
+    const currentFile = proj.files.find(f => f.id === currentFileId);
+
+    contentArea.innerHTML = `
+      <div class="code-editor">
+        <div class="editor-tabs" id="editor-tabs-container">
+          ${tabsHtml}
+          <button class="editor-tab" id="add-file-tab" style="color: var(--accent); cursor: pointer;">+</button>
+        </div>
+        <div class="editor-controls">
+          <button id="run-project">▶ Запустить</button>
+          <button id="save-project">↓ Сохранить</button>
+          <button id="rename-file">✏ Переименовать</button>
+        </div>
+        <div style="position: relative; flex: 1; display: flex; overflow: hidden;">
+          <pre id="code-highlight" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: 0; padding: 16px; overflow: auto; pointer-events: none; z-index: 1; font-family: 'SF Mono', 'Courier New', 'Consolas', monospace; font-size: 14px; line-height: 1.6; white-space: pre; tab-size: 2; background: var(--bg);"><code class="language-${getFileLanguage(currentFile.name)}" style="font-family: 'SF Mono', 'Courier New', 'Consolas', monospace; font-size: 14px; line-height: 1.6; padding: 0; margin: 0;">${escapeHtml(currentFile.content)}</code></pre>
+          <textarea class="code-area" id="code-area" spellcheck="false" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: transparent; color: transparent; caret-color: #00eeff; z-index: 2; padding: 16px; margin: 0; font-family: 'SF Mono', 'Courier New', 'Consolas', monospace; font-size: 14px; line-height: 1.6; white-space: pre; tab-size: 2; border: none; outline: none; resize: none; overflow: auto;">${currentFile.content}</textarea>
+        </div>
+      </div>
+    `;
+
+    // Подсвечиваем код
+    setTimeout(() => {
+      const codeBlock = document.querySelector('#code-highlight code');
+      if (codeBlock && window.hljs) {
+        hljs.highlightElement(codeBlock);
+      }
+    }, 10);
+
+    // Перетаскивание вкладок
+    const tabs = contentArea.querySelectorAll('.editor-tab[data-file]');
+    tabs.forEach(tab => {
+      tab.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', tab.dataset.index);
+        tab.classList.add('dragging');
+      });
+
+      tab.addEventListener('dragend', () => {
+        tab.classList.remove('dragging');
+      });
+
+      tab.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      tab.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIndex = parseInt(tab.dataset.index);
+        
+        if (fromIndex !== toIndex) {
+          const item = proj.files.splice(fromIndex, 1)[0];
+          proj.files.splice(toIndex, 0, item);
+          saveProjects();
+          renderCodeEditor(proj);
+        }
+      });
+
+      tab.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('tab-close')) {
+          currentFileId = tab.dataset.file;
+          renderCodeEditor(proj);
+        }
+      });
+    });
+
+    // Добавление новой вкладки
+    document.getElementById('add-file-tab').addEventListener('click', () => {
+      showModal('Имя нового файла (например, script.js):', filename => {
+        const newFileId = Date.now().toString(36);
+        proj.files.push({
+          id: newFileId,
+          name: filename,
+          content: ''
+        });
+        currentFileId = newFileId;
+        saveProjects();
+        renderCodeEditor(proj);
+      });
+    });
+
+    // Переименование файла
+    document.getElementById('rename-file').addEventListener('click', () => {
+      showModal('Новое имя файла:', newName => {
+        currentFile.name = newName;
+        saveProjects();
+        renderCodeEditor(proj);
+      }, null, currentFile.name);
+    });
+
+    // Закрытие вкладок
+    contentArea.querySelectorAll('.tab-close').forEach(closeBtn => {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const fileId = closeBtn.dataset.file;
+        
+        if (proj.files.length <= 1) {
+          showMessage('Нельзя удалить последний файл');
+          return;
+        }
+
+        if (confirm('Удалить этот файл?')) {
+          proj.files = proj.files.filter(f => f.id !== fileId);
+          if (currentFileId === fileId) {
+            currentFileId = proj.files[0].id;
+          }
+          saveProjects();
+          renderCodeEditor(proj);
+        }
+      });
+    });
+
+    // Автосохранение и синхронизация
+    const codeArea = document.getElementById('code-area');
+    const codeHighlight = document.getElementById('code-highlight');
+    const codeBlock = codeHighlight.querySelector('code');
+    
+    codeArea.addEventListener('input', () => {
+      currentFile.content = codeArea.value;
+      codeBlock.textContent = codeArea.value;
+      
+      // Перезапускаем подсветку
+      if (window.hljs) {
+        delete codeBlock.dataset.highlighted;
+        hljs.highlightElement(codeBlock);
+      }
+      
+      saveProjects();
+    });
+    
+    codeArea.addEventListener('scroll', () => {
+      codeHighlight.scrollTop = codeArea.scrollTop;
+      codeHighlight.scrollLeft = codeArea.scrollLeft;
+    });
+    
+    // Синхронизируем начальный скролл
+    codeArea.addEventListener('focus', () => {
+      codeHighlight.scrollTop = codeArea.scrollTop;
+      codeHighlight.scrollLeft = codeArea.scrollLeft;
+    });
+
+    // Кнопка сохранения
+    document.getElementById('save-project').onclick = () => {
+      showMessage('Проект сохранён');
+    };
+
+    // Запуск проекта
+    document.getElementById('run-project').onclick = () => {
+      const htmlFile = proj.files.find(f => f.name.includes('.html'));
+      if (!htmlFile) {
+        showMessage('HTML файл не найден');
+        return;
+      }
+
+      // Собираем все файлы
+      let fullHtml = htmlFile.content;
+      
+      // Внедряем CSS
+      const cssFile = proj.files.find(f => f.name.includes('.css'));
+      if (cssFile && cssFile.content.trim()) {
+        fullHtml = fullHtml.replace('</head>', `<style>${cssFile.content}</style></head>`);
+      }
+
+      // Внедряем JS
+      const jsFile = proj.files.find(f => f.name.includes('.js'));
+      if (jsFile && jsFile.content.trim()) {
+        fullHtml = fullHtml.replace('</body>', `<script>${jsFile.content}<\/script></body>`);
+      }
+
+      // Открываем в новом окне
+      const newWindow = window.open();
+      newWindow.document.write(fullHtml);
+      newWindow.document.close();
+    };
+  }
+
+  // === Галерея заметок ===
+  function showNotesGallery() {
+    currentView = 'notes';
+    currentNoteId = null;
+    uploadImageBtn.classList.remove('visible');
+    contentArea.parentElement.classList.add('with-padding');
+    
+    contentArea.innerHTML = `
+      <div class="notes-header">
+        <input type="text" class="search-box" id="note-search" placeholder="Поиск заметок..." />
+        <button class="home-btn" id="create-note" style="padding:6px 10px;">+ Новая</button>
+      </div>
+      <div class="notes-gallery" id="notes-gallery"></div>
+    `;
+
+    const notesGallery = document.getElementById('notes-gallery');
+    const searchBox = document.getElementById('note-search');
+    
+    document.getElementById('create-note').onclick = () => {
+      const title = 'Новая заметка';
+      const newId = Date.now().toString(36);
+      notes.push({ id: newId, title, content: '', image: null });
+      saveNotes();
+      openNote(newId);
+    };
+
+    function renderNotes(filter = '') {
+      notesGallery.innerHTML = '';
+      const filtered = notes.filter(n => n.title.toLowerCase().includes(filter.toLowerCase()));
+      
+      filtered.forEach(note => {
+        const card = document.createElement('div');
+        card.className = 'note-card';
+        card.innerHTML = `
+          <div class="note-card-image ${note.image ? '' : 'empty'}">
+            ${note.image ? `<img src="${note.image}" alt="${note.title}" />` : '✎'}
+          </div>
+          <div class="note-card-title">
+            <span>${note.title}</span>
+            <div class="note-card-actions">
+              <button class="delete" data-id="${note.id}">×</button>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', (e) => {
+          if (!e.target.closest('.note-card-actions')) {
+            openNote(note.id);
+          }
+        });
+
+        card.querySelector('.delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (notes.length <= 1) {
+            showMessage('Нельзя удалить последнюю заметку');
+            return;
+          }
+          if (confirm(`Удалить заметку "${note.title}"?`)) {
+            notes = notes.filter(n => n.id !== note.id);
+            saveNotes();
+            renderNotes(filter);
+          }
+        });
+
+        notesGallery.appendChild(card);
+      });
+    }
+
+    searchBox.oninput = e => renderNotes(e.target.value);
+    renderNotes();
+  }
+
+  // === Редактор заметки ===
+  function openNote(id) {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+
+    currentNoteId = id;
+    uploadImageBtn.classList.remove('visible');
+    contentArea.parentElement.classList.add('with-padding');
+    
+    contentArea.innerHTML = `
+      <div class="note-editor">
+        <input type="text" class="search-box" value="${note.title}" id="note-title" placeholder="Название заметки" />
+        <div class="note-image-upload">
+          <div class="note-image-preview ${note.image ? '' : 'empty'}" id="note-image-preview">
+            ${note.image ? `<img src="${note.image}" alt="preview" />` : '▦'}
+          </div>
+          <button class="home-btn" id="upload-note-image" style="padding:8px 12px;">Загрузить изображение</button>
+          ${note.image ? '<button class="home-btn" id="remove-note-image" style="padding:8px 12px;">Удалить изображение</button>' : ''}
+        </div>
+        <div class="editor-area" contenteditable="true" id="note-content">${note.content}</div>
+        <button class="home-btn" id="back-to-notes" style="margin-top:12px;">← Назад к галерее</button>
+      </div>
+    `;
+
+    const titleInput = document.getElementById('note-title');
+    const contentAreaEl = document.getElementById('note-content');
+
+    titleInput.oninput = () => {
+      note.title = titleInput.value;
+      saveNotes();
+    };
+
+    contentAreaEl.oninput = () => {
+      note.content = contentAreaEl.innerHTML;
+      saveNotes();
+    };
+
+    document.getElementById('back-to-notes').onclick = showNotesGallery;
+
+    document.getElementById('upload-note-image').onclick = () => {
+      currentImageUploadCallback = (dataUrl) => {
+        note.image = dataUrl;
+        saveNotes();
+        openNote(id);
+      };
+      hiddenImageInput.click();
+    };
+
+    const removeBtn = document.getElementById('remove-note-image');
+    if (removeBtn) {
+      removeBtn.onclick = () => {
+        note.image = null;
+        saveNotes();
+        openNote(id);
+      };
+    }
+  }
+
+  // === ИИ чат ===
+  document.getElementById('ai-toggle').onclick = () => {
+    const aiChat = document.getElementById('ai-chat');
+    const consolePanel = document.getElementById('console-panel');
+    
+    // Закрываем консоль если открыта
+    if (consolePanel.classList.contains('open')) {
+      consolePanel.classList.remove('open');
+      document.getElementById('console-toggle').textContent = 'Консоль (скрыта)';
+    }
+    
+    aiChat.classList.toggle('open');
+    document.getElementById('ai-toggle').textContent = aiChat.classList.contains('open') ? 'ИИ (открыт)' : 'ИИ (скрыт)';
+  };
+
+  document.getElementById('send-chat').onclick = sendChat;
+  document.getElementById('chat-input').onkeypress = e => { if (e.key === 'Enter') sendChat(); };
+
+  function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    const chatBox = document.getElementById('chat-messages');
+    chatBox.innerHTML += `<div style="color:#aaa;">Вы: ${msg}</div>`;
+    input.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    setTimeout(() => {
+      chatBox.innerHTML += `<div style="color:var(--accent); margin-top:6px;">ИИ: Запрос принят.</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }, 600);
+  }
+  
+  // === Консоль ===
+  document.getElementById('console-toggle').onclick = () => {
+    const consolePanel = document.getElementById('console-panel');
+    const aiChat = document.getElementById('ai-chat');
+    
+    // Закрываем ИИ чат если открыт
+    if (aiChat.classList.contains('open')) {
+      aiChat.classList.remove('open');
+      document.getElementById('ai-toggle').textContent = 'ИИ (скрыт)';
+    }
+    
+    consolePanel.classList.toggle('open');
+    document.getElementById('console-toggle').textContent = consolePanel.classList.contains('open') ? 'Консоль (открыта)' : 'Консоль (скрыта)';
+  };
+
+  document.getElementById('console-run').onclick = runConsoleCode;
+  document.getElementById('console-input').onkeypress = e => { if (e.key === 'Enter') runConsoleCode(); };
+  document.getElementById('console-clear').onclick = () => {
+    document.getElementById('console-output').innerHTML = '<div style="color:var(--accent);">Консоль очищена</div>';
+  };
+
+  function runConsoleCode() {
+    const input = document.getElementById('console-input');
+    const code = input.value.trim();
+    if (!code) return;
+    
+    const consoleOutput = document.getElementById('console-output');
+    consoleOutput.innerHTML += `<div style="color:#00D9FF; margin-top:8px;">> ${code}</div>`;
+    input.value = '';
+    
+    // Определяем язык по текущему файлу
+    if (!currentProjectId || !currentFileId) {
+      consoleOutput.innerHTML += `<div style="color:#FF3366;">Ошибка: Откройте проект для выполнения кода</div>`;
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      return;
+    }
+    
+    const proj = projects.find(p => p.id === currentProjectId);
+    const file = proj.files.find(f => f.id === currentFileId);
+    const ext = file.name.split('.').pop();
+    
+    try {
+      if (ext === 'js') {
+        // Выполняем JavaScript
+        const result = eval(code);
+        if (result !== undefined) {
+          consoleOutput.innerHTML += `<div style="color:#00FF88;">${JSON.stringify(result, null, 2)}</div>`;
+        }
+      } else if (ext === 'py') {
+        consoleOutput.innerHTML += `<div style="color:#FFD700;">Python: Выполнение на стороне клиента пока не поддерживается</div>`;
+      } else if (ext === 'html' || ext === 'css') {
+        consoleOutput.innerHTML += `<div style="color:#FFD700;">Для ${ext.toUpperCase()} используйте кнопку "Запустить"</div>`;
+      } else {
+        consoleOutput.innerHTML += `<div style="color:#FFD700;">Язык ${ext.toUpperCase()} пока не поддерживается</div>`;
+      }
+    } catch (error) {
+      consoleOutput.innerHTML += `<div style="color:#FF3366;">Ошибка: ${error.message}</div>`;
+    }
+    
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  }
+
+  // === Поиск проектов и навигация ===
+  document.getElementById('project-search').oninput = e => renderProjects(e.target.value);
+  document.getElementById('go-home').onclick = showHome;
+
+  // === Быстрые кнопки ===
+  document.getElementById('qb-new').onclick = () => {
+    showModal('Название проекта:', name => {
+      const newId = Date.now().toString(36);
+      projects.push({
+        id: newId,
+        name,
+        files: [
+          { id: 'index.html', name: 'index.html', content: '<!DOCTYPE html>\n<html>\n<head>\n  <title>' + name + '</title>\n</head>\n<body>\n  <h1>Новый проект</h1>\n</body>\n</html>' },
+          { id: 'style.css', name: 'style.css', content: '' },
+          { id: 'script.js', name: 'script.js', content: '' }
+        ]
+      });
+      saveProjects();
+      openProject(newId);
+    });
+  };
+  
+  document.getElementById('qb-settings').onclick = showSettings;
+  document.getElementById('qb-notes').onclick = showNotesGallery;
+  
+  document.getElementById('qb-last').onclick = () => {
+    if (projects.length > 0) {
+      openProject(projects[projects.length - 1].id);
+    } else {
+      showMessage('Нет проектов');
+    }
+  };
+
+  // === Воспроизведение ===
+  const playBtn = document.getElementById('play-toggle');
+  const header = document.querySelector('header');
+  const trackNameElement = document.getElementById('track-name');
+  
+  function updatePlayButton() {
+    playBtn.textContent = isPlaying ? 'II' : '▶';
+    if (isPlaying) {
+      header.classList.remove('paused');
+    } else {
+      header.classList.add('paused');
+    }
+  }
+  
+  function updateTrackDisplay() {
+    if (playlist.length > 0 && currentTrackIndex < playlist.length) {
+      trackNameElement.textContent = playlist[currentTrackIndex].name;
+    } else {
+      trackNameElement.textContent = 'Плейлист пуст – загрузите музыку в настройках';
+    }
+  }
+  
+  playBtn.onclick = () => {
+    if (playlist.length === 0) {
+      showMessage('Загрузите музыку в настройках');
+      return;
+    }
+    
+    if (!audioPlayer.src || audioPlayer.src === '') {
+      audioPlayer.src = playlist[currentTrackIndex].data;
+    }
+    
+    if (isPlaying) {
+      audioPlayer.pause();
+      isPlaying = false;
+    } else {
+      audioPlayer.play();
+      isPlaying = true;
+    }
+    
+    updatePlayButton();
+  };
+  
+  // Автоматическое переключение треков
+  audioPlayer.onended = () => {
+    currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+    audioPlayer.src = playlist[currentTrackIndex].data;
+    audioPlayer.play();
+    updateTrackDisplay();
+  };
+  
+  // Обработка ошибок
+  audioPlayer.onerror = () => {
+    showMessage('Ошибка воспроизведения трека');
+    isPlaying = false;
+    updatePlayButton();
+  };
+
+  // === Кнопка загрузки изображения на главной ===
+  uploadImageBtn.onclick = () => {
+    currentImageUploadCallback = (dataUrl) => {
+      backgroundImage = dataUrl;
+      localStorage.setItem('kaisercrest-bg-image', dataUrl);
+      showMessage('Фон установлен');
+      showHome();
+    };
+    hiddenImageInput.click();
+  };
+
+  // === Инициализация ===
+  // Загружаем тему
+  const savedTheme = localStorage.getItem('kaisercrest-theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-theme');
+  }
+  
+  // Инициализируем плеер
+  updateTrackDisplay();
+  updatePlayButton();
+  
+  showHome();
+  renderProjects();
+</script>
+
+</body>
+</html>
