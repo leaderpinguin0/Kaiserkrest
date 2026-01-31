@@ -519,9 +519,9 @@
     .home-buttons {
       position: relative;
       z-index: 1;
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, 140px);
       gap: 20px;
-      flex-wrap: wrap;
       justify-content: center;
     }
 
@@ -672,6 +672,23 @@
     .editor-controls button:hover {
       border-color: var(--accent);
     }
+    
+    .editor-controls input {
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      flex: 1;
+      max-width: 300px;
+    }
+
+    .editor-controls input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
 
     .code-area {
       flex: 1;
@@ -751,6 +768,11 @@
     #code-highlight code {
       font-family: 'SF Mono', 'Courier New', 'Consolas', monospace !important;
       font-size: 14px !important;
+    }
+    
+    .search-highlight {
+      background-color: rgba(255, 255, 0, 0.3);
+      border-radius: 2px;
     }
 
     /* === Галерея заметок === */
@@ -1580,9 +1602,11 @@
             });
             loaded++;
             
+            // Обновляем дисплей сразу после каждой загрузки
+            localStorage.setItem('kaisercrest-playlist', JSON.stringify(playlist));
+            updateTrackDisplay();
+            
             if (loaded === files.length) {
-              localStorage.setItem('kaisercrest-playlist', JSON.stringify(playlist));
-              updateTrackDisplay();
               overlay.remove();
               showMusicSettings();
               showMessage(`Загружено ${files.length} трек(ов)`);
@@ -1665,7 +1689,7 @@
       : '';
     
     const removeBgBtn = backgroundImage 
-      ? '<button class="home-btn-large" id="remove-bg">Удалить фон</button>'
+      ? '<button class="home-btn-large" id="remove-bg" style="grid-column: 2;">Удалить фон</button>'
       : '';
     
     contentArea.innerHTML = `
@@ -1783,6 +1807,7 @@
           <button id="run-project">▶ Запустить</button>
           <button id="save-project">↓ Сохранить</button>
           <button id="rename-file">✏ Переименовать</button>
+          <input type="text" id="code-search" placeholder="Поиск в коде..." style="margin-left: auto;" />
         </div>
         <div style="position: relative; flex: 1; display: flex; overflow: hidden;">
           <pre id="code-highlight" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: 0; padding: 16px; overflow: auto; pointer-events: none; z-index: 1; font-family: 'SF Mono', 'Courier New', 'Consolas', monospace; font-size: 14px; line-height: 1.6; white-space: pre; tab-size: 2; background: var(--bg);"><code class="language-${getFileLanguage(currentFile.name)}" style="font-family: 'SF Mono', 'Courier New', 'Consolas', monospace; font-size: 14px; line-height: 1.6; padding: 0; margin: 0;">${escapeHtml(currentFile.content)}</code></pre>
@@ -1889,6 +1914,34 @@
     const codeHighlight = document.getElementById('code-highlight');
     const codeBlock = codeHighlight.querySelector('code');
     
+    // Поддержка TAB
+    codeArea.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        
+        const start = codeArea.selectionStart;
+        const end = codeArea.selectionEnd;
+        const value = codeArea.value;
+        
+        // Вставляем два пробела вместо табуляции
+        codeArea.value = value.substring(0, start) + '  ' + value.substring(end);
+        
+        // Устанавливаем курсор после вставленных пробелов
+        codeArea.selectionStart = codeArea.selectionEnd = start + 2;
+        
+        // Обновляем подсветку
+        currentFile.content = codeArea.value;
+        codeBlock.textContent = codeArea.value;
+        
+        if (window.hljs) {
+          delete codeBlock.dataset.highlighted;
+          hljs.highlightElement(codeBlock);
+        }
+        
+        saveProjects();
+      }
+    });
+    
     codeArea.addEventListener('input', () => {
       currentFile.content = codeArea.value;
       codeBlock.textContent = codeArea.value;
@@ -1913,6 +1966,37 @@
       codeHighlight.scrollLeft = codeArea.scrollLeft;
     });
 
+    // Поиск в коде
+    const searchInput = document.getElementById('code-search');
+    searchInput.addEventListener('input', () => {
+      const searchTerm = searchInput.value.trim();
+      
+      if (!searchTerm) {
+        // Убираем подсветку
+        codeBlock.textContent = currentFile.content;
+        if (window.hljs) {
+          delete codeBlock.dataset.highlighted;
+          hljs.highlightElement(codeBlock);
+        }
+        return;
+      }
+      
+      // Находим все вхождения
+      const escapedSearch = escapeHtml(searchTerm);
+      const escapedContent = escapeHtml(currentFile.content);
+      const regex = new RegExp(escapedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      
+      const highlighted = escapedContent.replace(regex, match => `<span class="search-highlight">${match}</span>`);
+      
+      codeBlock.innerHTML = highlighted;
+      
+      // Прокручиваем к первому результату
+      const firstMatch = codeBlock.querySelector('.search-highlight');
+      if (firstMatch) {
+        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
     // Кнопка сохранения
     document.getElementById('save-project').onclick = () => {
       showMessage('Проект сохранён');
@@ -1920,31 +2004,78 @@
 
     // Запуск проекта
     document.getElementById('run-project').onclick = () => {
-      const htmlFile = proj.files.find(f => f.name.includes('.html'));
-      if (!htmlFile) {
-        showMessage('HTML файл не найден');
+      const ext = currentFile.name.split('.').pop();
+      
+      // Для HTML проектов
+      if (ext === 'html' || proj.files.some(f => f.name.includes('.html'))) {
+        const htmlFile = proj.files.find(f => f.name.includes('.html')) || currentFile;
+        let fullHtml = htmlFile.content;
+        
+        // Внедряем CSS
+        const cssFile = proj.files.find(f => f.name.includes('.css'));
+        if (cssFile && cssFile.content.trim()) {
+          fullHtml = fullHtml.replace('</head>', `<style>${cssFile.content}</style></head>`);
+        }
+
+        // Внедряем JS
+        const jsFile = proj.files.find(f => f.name.includes('.js'));
+        if (jsFile && jsFile.content.trim()) {
+          fullHtml = fullHtml.replace('</body>', `<script>${jsFile.content}<\/script></body>`);
+        }
+
+        // Открываем в новом окне
+        const newWindow = window.open();
+        newWindow.document.write(fullHtml);
+        newWindow.document.close();
         return;
       }
-
-      // Собираем все файлы
-      let fullHtml = htmlFile.content;
       
-      // Внедряем CSS
-      const cssFile = proj.files.find(f => f.name.includes('.css'));
-      if (cssFile && cssFile.content.trim()) {
-        fullHtml = fullHtml.replace('</head>', `<style>${cssFile.content}</style></head>`);
+      // Для Python
+      if (ext === 'py') {
+        const consolePanel = document.getElementById('console-panel');
+        const consoleOutput = document.getElementById('console-output');
+        
+        if (!consolePanel.classList.contains('open')) {
+          consolePanel.classList.add('open');
+          document.getElementById('console-toggle').textContent = 'Консоль (открыта)';
+        }
+        
+        consoleOutput.innerHTML += `<div style="color:#FFD700; margin-top:8px;">> Выполнение Python кода...</div>`;
+        consoleOutput.innerHTML += `<div style="color:#FF3366;">Python runtime пока не поддерживается в браузере</div>`;
+        consoleOutput.innerHTML += `<div style="color:#00D9FF;">Используйте внешний интерпретатор Python для запуска этого кода</div>`;
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        return;
       }
-
-      // Внедряем JS
-      const jsFile = proj.files.find(f => f.name.includes('.js'));
-      if (jsFile && jsFile.content.trim()) {
-        fullHtml = fullHtml.replace('</body>', `<script>${jsFile.content}<\/script></body>`);
+      
+      // Для JavaScript
+      if (ext === 'js') {
+        const consolePanel = document.getElementById('console-panel');
+        const consoleOutput = document.getElementById('console-output');
+        
+        if (!consolePanel.classList.contains('open')) {
+          consolePanel.classList.add('open');
+          document.getElementById('console-toggle').textContent = 'Консоль (открыта)';
+        }
+        
+        consoleOutput.innerHTML += `<div style="color:#FFD700; margin-top:8px;">> Выполнение JavaScript...</div>`;
+        
+        try {
+          const result = eval(currentFile.content);
+          if (result !== undefined) {
+            consoleOutput.innerHTML += `<div style="color:#00FF88;">${JSON.stringify(result, null, 2)}</div>`;
+          } else {
+            consoleOutput.innerHTML += `<div style="color:#00FF88;">Код выполнен успешно</div>`;
+          }
+        } catch (error) {
+          consoleOutput.innerHTML += `<div style="color:#FF3366;">Ошибка: ${error.message}</div>`;
+        }
+        
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        return;
       }
-
-      // Открываем в новом окне
-      const newWindow = window.open();
-      newWindow.document.write(fullHtml);
-      newWindow.document.close();
+      
+      // Для других языков
+      showMessage(`Запуск файлов .${ext} пока не поддерживается`);
     };
   }
 
@@ -2141,30 +2272,31 @@
     consoleOutput.innerHTML += `<div style="color:#00D9FF; margin-top:8px;">> ${code}</div>`;
     input.value = '';
     
-    // Определяем язык по текущему файлу
-    if (!currentProjectId || !currentFileId) {
-      consoleOutput.innerHTML += `<div style="color:#FF3366;">Ошибка: Откройте проект для выполнения кода</div>`;
-      consoleOutput.scrollTop = consoleOutput.scrollHeight;
-      return;
-    }
-    
-    const proj = projects.find(p => p.id === currentProjectId);
-    const file = proj.files.find(f => f.id === currentFileId);
-    const ext = file.name.split('.').pop();
-    
     try {
-      if (ext === 'js') {
-        // Выполняем JavaScript
-        const result = eval(code);
-        if (result !== undefined) {
-          consoleOutput.innerHTML += `<div style="color:#00FF88;">${JSON.stringify(result, null, 2)}</div>`;
-        }
-      } else if (ext === 'py') {
-        consoleOutput.innerHTML += `<div style="color:#FFD700;">Python: Выполнение на стороне клиента пока не поддерживается</div>`;
-      } else if (ext === 'html' || ext === 'css') {
-        consoleOutput.innerHTML += `<div style="color:#FFD700;">Для ${ext.toUpperCase()} используйте кнопку "Запустить"</div>`;
-      } else {
-        consoleOutput.innerHTML += `<div style="color:#FFD700;">Язык ${ext.toUpperCase()} пока не поддерживается</div>`;
+      // Перехватываем console.log
+      const originalLog = console.log;
+      let capturedOutput = '';
+      
+      console.log = (...args) => {
+        capturedOutput += args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ') + '\n';
+        originalLog.apply(console, args);
+      };
+      
+      const result = eval(code);
+      
+      // Восстанавливаем console.log
+      console.log = originalLog;
+      
+      // Выводим перехваченный вывод
+      if (capturedOutput) {
+        consoleOutput.innerHTML += `<div style="color:#00FF88;">${capturedOutput}</div>`;
+      }
+      
+      // Выводим результат
+      if (result !== undefined) {
+        consoleOutput.innerHTML += `<div style="color:#00FF88;">${JSON.stringify(result, null, 2)}</div>`;
       }
     } catch (error) {
       consoleOutput.innerHTML += `<div style="color:#FF3366;">Ошибка: ${error.message}</div>`;
